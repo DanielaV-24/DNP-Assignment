@@ -6,6 +6,16 @@ public class PostInMemoryRepository : IPostRepository
 {
     private List<Post> posts = new List<Post>();
     
+    public PostInMemoryRepository()
+    {
+        _ = AddAsync(new Post("Best programming language?", "What programming language do you enjoy using the most?", 1)).Result;
+        _ = AddAsync(new Post("First day at university", "Today was my first day at university. It was exciting but also a little overwhelming!", 2)).Result;
+        _ = AddAsync(new Post("Easy dinner ideas", "I don't know what to cook tonight. Any quick suggestions?", 3)).Result;
+        _ = AddAsync(new Post("Weekend plans", "Does anyone have something interesting planned for this weekend?", 4)).Result;
+        _ = AddAsync(new Post("Learning C#", "I'm learning C# and async programming. Some parts are still confusing.", 1)).Result;
+        _ = AddAsync(new Post("Movie recommendations", "I need a good movie to watch tonight. What would you recommend?", 5)).Result;
+    }
+    
     public Task<Post> AddAsync(Post post)
     {
         post.Id = posts.Any()
