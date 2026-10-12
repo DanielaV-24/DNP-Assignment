@@ -1,0 +1,118 @@
+using ApiContracts;
+using Entities;
+using Microsoft.AspNetCore.Mvc;
+using RepositoryContracts;
+
+namespace WebApiServer.Controllers;
+
+[ApiController]
+[Route("[controller]")]
+public class UsersController : ControllerBase
+{
+    private readonly IUserRepository userRepository;
+
+    public UsersController(IUserRepository userRepository)
+    {
+        this.userRepository = userRepository;
+    }
+
+    // GET endpoint to retrieve all users, optionally filtered by username
+    [HttpGet]
+    public IActionResult GetAllUsers([FromQuery] string? username)
+    {
+        var users = userRepository.GetMany();
+
+        if (!string.IsNullOrWhiteSpace(username))
+        {
+            users = users.Where(u =>
+                u.Username.Contains(
+                    username,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+
+        var userDtos = users.Select(user => new UserDto
+        {
+            Id = user.Id,
+            Username = user.Username
+        }).ToList();
+
+        return Ok(userDtos);
+    }
+
+    // GET endpoint to retrieve a specific user by ID
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetUserById(int id)
+    {
+        var user = await userRepository.GetSingleAsync(id);
+
+        if (user is null)
+        {
+            return NotFound("User not found");
+        }
+
+        var userDto = new UserDto
+        {
+            Id = user.Id,
+            Username = user.Username
+        };
+
+        return Ok(userDto);
+    }
+
+    // POST endpoint to add a new user
+    [HttpPost]
+    public async Task<IActionResult> CreateUser([FromBody] User newUser)
+    {
+        var createdUser = await userRepository.AddAsync(newUser);
+
+        var userDto = new UserDto
+        {
+            Id = createdUser.Id,
+            Username = createdUser.Username
+        };
+
+        return CreatedAtAction(
+            nameof(GetUserById),
+            new { id = createdUser.Id },
+            userDto);
+    }
+
+    // PUT endpoint to update an existing user
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> UpdateUser(
+        [FromRoute] int id,
+        [FromBody] User updatedUser)
+    {
+        if (id != updatedUser.Id)
+        {
+            return BadRequest(
+                "The ID in the URL does not match the user ID.");
+        }
+
+        await userRepository.UpdateAsync(updatedUser);
+
+        var userDto = new UserDto
+        {
+            Id = updatedUser.Id,
+            Username = updatedUser.Username
+        };
+
+        return Ok(userDto);
+    }
+
+    // DELETE endpoint to delete a user by ID
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> DeleteUser(int id)
+    {
+        var user = await userRepository.GetSingleAsync(id);
+
+        if (user is null)
+        {
+            return NotFound("User not found");
+        }
+
+        await userRepository.DeleteAsync(id);
+
+        return NoContent();
+    }
+}
