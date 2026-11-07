@@ -1,0 +1,88 @@
+@page "/posts/create"
+@attribute [Authorize]
+@using BlazorApp.Services
+@using ApiContracts
+@using System.Security.Claims
+@inject IPostService PostService
+@inject NavigationManager Navigation
+
+<div class="page-container">
+    <h1>Create a Post</h1>
+    <p class="page-description">Share something with the community.</p>
+
+    <div class="post-form-card">
+        <div class="form-group">
+            <label>Title</label>
+            <input class="form-control"
+                   @bind="title"
+                   placeholder="Enter post title" />
+        </div>
+
+        <div class="form-group">
+            <label>Content</label>
+            <textarea class="form-control"
+                      @bind="body"
+                      placeholder="Write your post..."
+                      rows="5"></textarea>
+        </div>
+
+        <p>Author: <strong>@userName</strong></p>
+
+        <button class="btn btn-primary"
+                @onclick="CreateNewPost"
+                disabled="@(userId == 0)">
+            Create Post
+        </button>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    private string title = "";
+    private string body = "";
+    private string userName = "";
+    private int userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authenticationState = await AuthenticationStateTask;
+        ClaimsPrincipal user = authenticationState.User;
+
+        if (user.Identity == null || !user.Identity.IsAuthenticated)
+        {
+            return;
+        }
+
+        userName = user.Identity.Name ?? "";
+
+        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier);
+
+        if (userIdClaim != null)
+        {
+            int.TryParse(userIdClaim.Value, out userId);
+        }
+    }
+
+    private async Task CreateNewPost()
+    {
+        if (string.IsNullOrWhiteSpace(title) ||
+            string.IsNullOrWhiteSpace(body) ||
+            userId == 0)
+        {
+            return;
+        }
+
+        var request = new CreatePostDto
+        {
+            Title = title,
+            Body = body,
+            UserId = userId
+        };
+
+        await PostService.AddPostAsync(request);
+
+        Navigation.NavigateTo("/posts");
+    }
+}

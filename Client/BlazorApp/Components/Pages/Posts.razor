@@ -1,0 +1,49 @@
+@page "/posts"
+@using BlazorApp.Services
+@using ApiContracts
+@inject IPostService PostService
+
+<div class="page-container">
+    <h1>Posts</h1>
+    <p class="page-description">Explore the latest posts.</p>
+    <a href="/posts/create" class="create-post-button">
+        + Create New Post
+    </a>
+
+    @if (posts == null)
+    {
+        <p>Loading posts...</p>
+    }
+    else if (!posts.Any())
+    {
+        <p>No posts found.</p>
+    }
+    else
+    {
+        <div class="posts-list">
+            @foreach (var post in posts)
+            {
+                <div class="post-card">
+                    <h3>
+                        <a href="/posts/@post.Id">@post.Title</a>
+                    </h3>
+
+                    <p class="post-body">@post.Body</p>
+
+                    <div class="post-author">
+                        Written by: <strong>@post.Username</strong>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IEnumerable<PostDto>? posts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        posts = await PostService.GetAllPostsAsync();
+    }
+}

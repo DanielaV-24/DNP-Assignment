@@ -1,0 +1,137 @@
+@page "/posts/{Id:int}"
+@using BlazorApp.Services
+@using ApiContracts
+@using System.Security.Claims
+@inject IPostService PostService
+@inject ICommentService CommentService
+
+<div class="page-container">
+
+    <a href="/posts" class="back-link">← Back to Posts</a>
+
+    @if (post == null)
+    {
+        <p>Loading post...</p>
+    }
+    else
+    {
+        <div class="post-detail-card">
+            <h1>@post.Title</h1>
+
+            <p class="post-detail-body">@post.Body</p>
+
+            <div class="post-author">
+                Written by: <strong>@post.Username</strong>
+            </div>
+        </div>
+
+        <div class="comments-section">
+            <h2>Comments</h2>
+
+            @if (comments == null)
+            {
+                <p>Loading comments...</p>
+            }
+            else if (!comments.Any())
+            {
+                <p>No comments yet.</p>
+            }
+            else
+            {
+                @foreach (var comment in comments)
+                {
+                    <div class="comment-card">
+                        <p>@comment.Body</p>
+                        <span>Comment by: <strong>@comment.Username</strong></span>
+                    </div>
+                }
+            }
+
+            @if (userId != 0)
+            {
+                <div class="add-comment-card">
+                    <h3>Leave a Comment</h3>
+
+                    <textarea class="form-control"
+                              @bind="commentBody"
+                              placeholder="Write your comment..."
+                              rows="3">
+                    </textarea>
+
+                    <button class="btn btn-primary" @onclick="SubmitComment">
+                        Add Comment
+                    </button>
+                </div>
+            }
+            else
+            {
+                <p>Please <a href="/login">log in</a> to leave a comment.</p>
+            }
+        </div>
+    }
+
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    [CascadingParameter]
+    public Task<AuthenticationState> State { get; set; } = default!;
+
+    private PostDto? post;
+    private IEnumerable<CommentDto>? comments;
+
+    private string commentBody = "";
+    private string? userName;
+    private int userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState authenticationState = await State;
+        ClaimsPrincipal claimsPrincipal = authenticationState.User;
+
+        if (claimsPrincipal.Identity == null ||
+            !claimsPrincipal.Identity.IsAuthenticated)
+        {
+            return;
+        }
+
+        userName = claimsPrincipal.Identity.Name;
+
+        string? userIdAsString =
+            claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userIdAsString != null)
+        {
+            int.TryParse(userIdAsString, out userId);
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        post = await PostService.GetPostByIdAsync(Id);
+        comments = await CommentService.GetAllCommentsAsync(postId: Id);
+    }
+
+    private async Task SubmitComment()
+    {
+        if (string.IsNullOrWhiteSpace(commentBody) || userId == 0)
+        {
+            return;
+        }
+
+        var request = new CreateCommentDto
+        {
+            Body = commentBody,
+            UserId = userId,
+            PostId = Id
+        };
+
+        await CommentService.AddCommentAsync(request);
+
+        comments = await CommentService.GetAllCommentsAsync(postId: Id);
+
+        commentBody = "";
+    }
+}

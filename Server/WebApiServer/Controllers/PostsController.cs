@@ -1,3 +1,4 @@
+using ApiContracts;
 using Microsoft.AspNetCore.Mvc;
 using RepositoryContracts;
 using Entities;
@@ -21,7 +22,8 @@ public class PostsController : ControllerBase
         this.commentRepository = commentRepository;
         this.userRepository = userRepository;
     }
-    
+
+    // GET: /Posts
     [HttpGet]
     public IActionResult GetAllPosts(
         [FromQuery] string? title,
@@ -58,19 +60,20 @@ public class PostsController : ControllerBase
                 matchingUserIds.Contains(p.UserId));
         }
 
-        var result = posts.ToList().Select(post => new
+        var result = posts.ToList().Select(post => new PostDto
         {
-            post.Id,
-            post.Title,
-            post.Body,
+            Id = post.Id,
+            Title = post.Title,
+            Body = post.Body,
+            UserId = post.UserId,
             Username = users
                 .FirstOrDefault(u => u.Id == post.UserId)?.Username
         });
 
         return Ok(result);
     }
-    
-    // GET endpoint to retrieve a specific post by ID
+
+    // GET: /Posts/{id}
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetPostById(int id)
     {
@@ -81,38 +84,81 @@ public class PostsController : ControllerBase
             return NotFound("Post not found");
         }
 
-        return Ok(post);
+        var user = userRepository.GetMany()
+            .FirstOrDefault(u => u.Id == post.UserId);
+
+        var postDto = new PostDto
+        {
+            Id = post.Id,
+            Title = post.Title,
+            Body = post.Body,
+            UserId = post.UserId,
+            Username = user?.Username
+        };
+
+        return Ok(postDto);
     }
-    
-    // POST endpoint to add a new post
+
+    // POST: /Posts
     [HttpPost]
-    public async Task<IActionResult> CreatePost([FromBody] Post newPost)
+    public async Task<IActionResult> CreatePost(
+        [FromBody] CreatePostDto request)
     {
+        var newPost = new Post(
+            request.Title,
+            request.Body,
+            request.UserId);
+
         var createdPost = await postRepository.AddAsync(newPost);
+
+        var postDto = new PostDto
+        {
+            Id = createdPost.Id,
+            Title = createdPost.Title,
+            Body = createdPost.Body,
+            UserId = createdPost.UserId,
+            Username = userRepository.GetMany()
+                .FirstOrDefault(u => u.Id == createdPost.UserId)?.Username
+        };
 
         return CreatedAtAction(
             nameof(GetPostById),
             new { id = createdPost.Id },
-            createdPost);
+            postDto);
     }
-    
-    // PUT endpoint to update an existing post
+
+    // PUT: /Posts/{id}
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdatePost(
         [FromRoute] int id,
-        [FromBody] Post updatedPost)
+        [FromBody] UpdatePostDto request)
     {
-        if (id != updatedPost.Id)
+        var existingPost = await postRepository.GetSingleAsync(id);
+
+        if (existingPost is null)
         {
-            return BadRequest("The ID in the URL does not match the post ID.");
+            return NotFound("Post not found");
         }
 
-        await postRepository.UpdateAsync(updatedPost);
+        existingPost.Title = request.Title;
+        existingPost.Body = request.Body;
 
-        return Ok(updatedPost);
+        await postRepository.UpdateAsync(existingPost);
+
+        var postDto = new PostDto
+        {
+            Id = existingPost.Id,
+            Title = existingPost.Title,
+            Body = existingPost.Body,
+            UserId = existingPost.UserId,
+            Username = userRepository.GetMany()
+                .FirstOrDefault(u => u.Id == existingPost.UserId)?.Username
+        };
+
+        return Ok(postDto);
     }
-    
-    // DELETE endpoint to delete a post by ID
+
+    // DELETE: /Posts/{id}
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeletePost(int id)
     {
@@ -127,8 +173,8 @@ public class PostsController : ControllerBase
 
         return NoContent();
     }
-    
-    // GET endpoint to retrieve comments belonging to a post
+
+    // GET: /Posts/{postId}/comments
     [HttpGet("{postId:int}/comments")]
     public IActionResult GetCommentsForPost(int postId)
     {

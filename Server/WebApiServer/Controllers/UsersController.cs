@@ -16,7 +16,8 @@ public class UsersController : ControllerBase
         this.userRepository = userRepository;
     }
 
-    // GET endpoint to retrieve all users, optionally filtered by username
+    // GET: /Users
+    // Optional filter by username
     [HttpGet]
     public IActionResult GetAllUsers([FromQuery] string? username)
     {
@@ -39,7 +40,7 @@ public class UsersController : ControllerBase
         return Ok(userDtos);
     }
 
-    // GET endpoint to retrieve a specific user by ID
+    // GET: /Users/{id}
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetUserById(int id)
     {
@@ -59,10 +60,15 @@ public class UsersController : ControllerBase
         return Ok(userDto);
     }
 
-    // POST endpoint to add a new user
+    // POST: /Users
     [HttpPost]
-    public async Task<IActionResult> CreateUser([FromBody] User newUser)
+    public async Task<IActionResult> CreateUser(
+        [FromBody] CreateUserDto request)
     {
+        User newUser = new(
+            request.Username,
+            request.Password);
+
         var createdUser = await userRepository.AddAsync(newUser);
 
         var userDto = new UserDto
@@ -77,30 +83,38 @@ public class UsersController : ControllerBase
             userDto);
     }
 
-    // PUT endpoint to update an existing user
+    // PUT: /Users/{id}
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateUser(
         [FromRoute] int id,
-        [FromBody] User updatedUser)
+        [FromBody] UpdateUserDto request)
     {
-        if (id != updatedUser.Id)
+        var user = await userRepository.GetSingleAsync(id);
+
+        if (user is null)
         {
-            return BadRequest(
-                "The ID in the URL does not match the user ID.");
+            return NotFound("User not found");
         }
 
-        await userRepository.UpdateAsync(updatedUser);
+        user.Username = request.Username;
+
+        if (!string.IsNullOrWhiteSpace(request.Password))
+        {
+            user.Password = request.Password;
+        }
+
+        await userRepository.UpdateAsync(user);
 
         var userDto = new UserDto
         {
-            Id = updatedUser.Id,
-            Username = updatedUser.Username
+            Id = user.Id,
+            Username = user.Username
         };
 
         return Ok(userDto);
     }
 
-    // DELETE endpoint to delete a user by ID
+    // DELETE: /Users/{id}
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteUser(int id)
     {

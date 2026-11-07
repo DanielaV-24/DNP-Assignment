@@ -1,0 +1,45 @@
+@page "/users"
+@using BlazorApp.Services
+@using ApiContracts
+@inject IUserService UserService
+
+<div class="page-container">
+    <h1>Users</h1>
+    <p class="page-description">Explore the registered users.</p>
+
+    @if (users == null)
+    {
+        <p>Loading users...</p>
+    }
+    else if (!users.Any())
+    {
+        <p>No users found.</p>
+    }
+    else
+    {
+        <div class="users-list">
+            @foreach (var user in users)
+            {
+                <div class="user-card">
+                    <div class="user-icon">
+                        @user.Username.Substring(0, 1).ToUpper()
+                    </div>
+
+                    <div class="user-info">
+                        <h3>@user.Username</h3>
+                        <p>User ID: @user.Id</p>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IEnumerable<UserDto>? users;
+
+    protected override async Task OnInitializedAsync()
+    {
+        users = await UserService.GetAllUsersAsync();
+    }
+}

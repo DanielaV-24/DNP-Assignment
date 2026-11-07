@@ -1,0 +1,36 @@
+﻿@page "/"
+@inject NavigationManager NavMgr
+
+<PageTitle>Home</PageTitle>
+
+<div class="page-container">
+
+    <h1>Welcome to SocialApp</h1>
+
+    <AuthorizeView>
+        <Authorized>
+            <h3>Hello, @context.User.Identity?.Name!</h3>
+            <p>Welcome back.</p>
+        </Authorized>
+
+        <NotAuthorized>
+            <h3>You are not logged in!</h3>
+            <p>
+                <button class="btn btn-primary"
+                        @onclick='() => NavMgr.NavigateTo("/login")'>
+                    Go to Login
+                </button>
+            </p>
+        </NotAuthorized>
+    </AuthorizeView>
+
+    <p>Manage users, posts and comments in one place.</p>
+
+    <h3>Explore the application</h3>
+
+    <ul>
+        <li><a href="/users">View Users</a></li>
+        <li><a href="/posts">Browse Posts</a></li>
+    </ul>
+
+</div>
