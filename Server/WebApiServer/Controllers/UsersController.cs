@@ -1,6 +1,7 @@
 using ApiContracts;
 using Entities;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using RepositoryContracts;
 
 namespace WebApiServer.Controllers;
@@ -19,23 +20,16 @@ public class UsersController : ControllerBase
     // GET: /Users
     // Optional filter by username
     [HttpGet]
-    public IActionResult GetAllUsers([FromQuery] string? username)
+    public async Task<IActionResult> GetAllUsers([FromQuery] string? username)
     {
-        var users = userRepository.GetMany();
-
-        if (!string.IsNullOrWhiteSpace(username))
-        {
-            users = users.Where(u =>
-                u.Username.Contains(
-                    username,
-                    StringComparison.OrdinalIgnoreCase));
-        }
-
-        var userDtos = users.Select(user => new UserDto
-        {
-            Id = user.Id,
-            Username = user.Username
-        }).ToList();
+        var userDtos = await userRepository.GetMany()
+            .Where(u => username == null || u.Username.ToLower().Contains(username.ToLower()))
+            .Select(u => new UserDto
+            {
+                Id = u.Id,
+                Username = u.Username
+            })
+            .ToListAsync();
 
         return Ok(userDtos);
     }

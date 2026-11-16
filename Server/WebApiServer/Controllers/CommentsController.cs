@@ -1,6 +1,7 @@
 using ApiContracts;
 using Entities;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using RepositoryContracts;
 
 namespace WebApiServer.Controllers;
@@ -25,7 +26,7 @@ public class CommentsController : ControllerBase
 
     // GET: /Comments
     [HttpGet]
-    public IActionResult GetAllComments(
+    public async Task<IActionResult> GetAllComments(
         [FromQuery] int? postId,
         [FromQuery] int? userId,
         [FromQuery] string? username)
@@ -33,42 +34,37 @@ public class CommentsController : ControllerBase
         var comments = commentRepository.GetMany();
 
         if (postId.HasValue)
-        {
             comments = comments.Where(c => c.PostId == postId.Value);
-        }
 
         if (userId.HasValue)
-        {
             comments = comments.Where(c => c.UserId == userId.Value);
-        }
 
-        var users = userRepository.GetMany().ToList();
+        var users = await userRepository.GetMany().ToListAsync();
 
         if (!string.IsNullOrWhiteSpace(username))
         {
             var matchingUserIds = users
-                .Where(u => u.Username.Contains(
-                    username,
-                    StringComparison.OrdinalIgnoreCase))
+                .Where(u => u.Username.ToLower().Contains(username.ToLower()))
                 .Select(u => u.Id)
                 .ToList();
 
-            comments = comments.Where(c =>
-                matchingUserIds.Contains(c.UserId));
+            comments = comments.Where(c => matchingUserIds.Contains(c.UserId));
         }
 
-        var result = comments.ToList().Select(comment => new CommentDto
+        var commentList = await comments.ToListAsync();
+
+        var result = commentList.Select(c => new CommentDto
         {
-            Id = comment.Id,
-            Body = comment.Body,
-            UserId = comment.UserId,
-            PostId = comment.PostId,
-            Username = users
-                .FirstOrDefault(u => u.Id == comment.UserId)?.Username
+            Id = c.Id,
+            Body = c.Body,
+            UserId = c.UserId,
+            PostId = c.PostId,
+            Username = users.FirstOrDefault(u => u.Id == c.UserId)?.Username
         });
 
         return Ok(result);
     }
+
 
     // GET: /Comments/{id}
     [HttpGet("{id:int}")]
@@ -81,8 +77,8 @@ public class CommentsController : ControllerBase
             return NotFound("Comment not found");
         }
 
-        var user = userRepository.GetMany()
-            .FirstOrDefault(u => u.Id == comment.UserId);
+        var user = await userRepository.GetMany()
+            .FirstOrDefaultAsync(u => u.Id == comment.UserId);
 
         var commentDto = new CommentDto
         {
@@ -114,8 +110,8 @@ public class CommentsController : ControllerBase
             Body = createdComment.Body,
             UserId = createdComment.UserId,
             PostId = createdComment.PostId,
-            Username = userRepository.GetMany()
-                .FirstOrDefault(u => u.Id == createdComment.UserId)?.Username
+            Username = (await userRepository.GetMany()
+                .FirstOrDefaultAsync(u => u.Id == createdComment.UserId))?.Username
         };
 
         return CreatedAtAction(
@@ -147,8 +143,8 @@ public class CommentsController : ControllerBase
             Body = existingComment.Body,
             UserId = existingComment.UserId,
             PostId = existingComment.PostId,
-            Username = userRepository.GetMany()
-                .FirstOrDefault(u => u.Id == existingComment.UserId)?.Username
+            Username = (await userRepository.GetMany()
+                .FirstOrDefaultAsync(u => u.Id == existingComment.UserId))?.Username
         };
 
         return Ok(commentDto);
